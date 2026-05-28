@@ -1,15 +1,18 @@
 # monorepo-switcher
 
-> Intelligent CLI tool for quickly switching between packages in monorepos with context awareness and smart workspace discovery.
+[![npm version](https://badge.fury.io/js/monorepo-switcher.svg)](https://badge.fury.io/js/monorepo-switcher)
+[![Build Status](https://github.com/quadbyte/monorepo-switcher/actions/workflows/ci.yml/badge.svg)](https://github.com/quadbyte/monorepo-switcher/actions/workflows/ci.yml)
+
+Intelligent CLI for fast monorepo workspace switching with context awareness.
 
 ## Features
 
-- 🔍 **Instant Discovery**: Lists all packages in monorepo with one command
-- 🎯 **Smart History**: Remembers recently used packages for quick access
-- 🔥 **Context Awareness**: Shows git status, uncommitted changes, and package types
-- 🚀 **Lightning-Fast Navigation**: `monorepo-switcher backend` takes you directly to the right package
-- 🧠 **Intelligent Search**: Fuzzy search across package names, descriptions, and paths
-- 🎨 **Beautiful CLI**: Colorized output with emoji indicators and clear status badges
+- 🔍 **Fast Discovery**: Instantly discovers all packages in your monorepo
+- 🎯 **Smart Switching**: Quick navigation between packages with fuzzy search
+- 📊 **Context Awareness**: Shows package type, git status, and recent activity
+- 📝 **Session History**: Remembers recently used packages
+- 🎨 **Rich Output**: Beautiful terminal formatting with colors and icons
+- ⚡ **Lightweight**: No external dependencies, fast startup time
 
 ## Installation
 
@@ -17,165 +20,158 @@
 npm install -g monorepo-switcher
 ```
 
-Or use the short alias:
-
-```bash
-npm install -g mrsw
-```
-
 ## Usage
 
-### Basic Switching
+### List all packages
 
 ```bash
-# List all packages
 monorepo-switcher
+```
 
-# Switch to a specific package
+### Switch to a specific package
+
+```bash
 monorepo-switcher backend
-
-# Interactive mode with fuzzy selection
-monorepo-switcher -i
-
-# Fuzzy search
-monorepo-switcher --fuzzy "front"
+monorepo-switcher frontend
+monorepo-switcher shared
 ```
 
-### Context-Aware Commands
+### Show recently used packages
 
 ```bash
-# Show only recently used packages
 monorepo-switcher --recent
-
-# Show only packages with uncommitted changes
-monorepo-switcher --dirty
-
-# List all packages (no switching)
-monorepo-switcher --list
 ```
 
-### Special Commands
+### Fuzzy search for packages
 
 ```bash
-# Show recently used packages (standalone)
-monorepo-switcher recent
-
-# Show recently used packages with custom limit
-monorepo-switcher recent --number 10
-
-# Show packages with uncommitted changes
-monorepo-switcher dirty
-
-# Clear package history
-monorepo-switcher clear
+monorepo-switcher --fuzzy
 ```
 
-## Output Example
+### Show help
 
+```bash
+monorepo-switcher --help
 ```
+
+### Show version
+
+```bash
+monorepo-switcher --version
+```
+
+## Examples
+
+```bash
+# List all packages in current monorepo
+$ monorepo-switcher
+
 📦 Monorepo: /Users/dev/my-project (12 packages)
 
 🎯 RECENTLY USED:
-├── backend/          ⭐ 2 files modified
+├── backend/          ⚠️ modified
 ├── frontend/        ✅ clean
-└── shared/          🔥 5 files modified (active)
+└── shared/          🔥 active
 
 🔍 ALL PACKAGES:
 ├── backend/ (Node.js) - REST API service
-├── frontend/ (React) - Web UI
+├── frontend/ (React) - Web UI  
 ├── shared/ (TypeScript) - Common utilities
 ├── admin/ (React) - Admin dashboard
 ├── mobile/ (React Native) - Mobile app
 └── docs/ (Markdown) - Project documentation
-```
 
-## Status Indicators
-
-| Icon | Status |
-|------|--------|
-| ✅ | Clean (no uncommitted changes) |
-| 🔥 | Modified (staged or unstaged changes) |
-| 📋 | Untracked (new files not in git) |
-
-## Package Type Badges
-
-| Badge | Type |
-|-------|------|
-| [React] | React application |
-| [Next] | Next.js application |
-| [RN] | React Native application |
-| [Node] | Node.js package |
-| [Docs] | Documentation package |
-| [Unknown] | Unknown package type |
-
-## How It Works
-
-1. **Auto-discovery**: Scans your monorepo for `package.json` files
-2. **Type detection**: Analyzes dependencies to detect package types
-3. **Git integration**: Checks git status for each package
-4. **Session persistence**: Remembers your workspace context across terminal sessions
-
-## Configuration
-
-Configuration is stored in `~/.monorepo-switcher/config.json`:
-
-```json
-{
-  "maxRecentPackages": 10,
-  "historyFilePath": "/home/user/.monorepo-switcher/history.json"
-}
-```
-
-## Monorepo Support
-
-Works out-of-the-box with:
-- pnpm workspaces
-- yarn workspaces
-- npm workspaces
-- Turborepo
-- Nx
-- Lerna
-- Rush
-- Custom monorepo structures
-
-## Use Cases
-
-### Switching to the Backend
-
-```bash
+# Switch to backend package
 $ monorepo-switcher backend
-✓ Switched to: backend
-  Path: /Users/dev/my-project/packages/backend
-  Run: cd /Users/dev/my-project/packages/backend
+🎯 Switching to backend...
+✅ Successfully switched to /Users/dev/my-project/backend
+
+# Show recently used packages
+$ monorepo-switcher --recent
+📦 Monorepo: /Users/dev/my-project (12 packages)
+
+🎯 RECENTLY USED:
+├── backend/          ⚠️ modified
+├── frontend/        ✅ clean
+└── shared/          🔥 active
 ```
 
-### Finding All Dirty Packages
+## Status Icons
+
+- ✅ **clean**: No changes in git
+- ⚠️ **modified**: Has changes in git
+- ❌ **untracked**: Has untracked files
+
+## Package Types
+
+- **Node.js**: Node.js package with TypeScript
+- **React**: React application
+- **Next.js**: Next.js application
+- **React Native**: React Native application
+- **Docs**: Documentation package
+- **Unknown**: Unrecognized package type
+
+## Development
+
+### Prerequisites
+
+- Node.js 18 or higher
+- npm or yarn
+
+### Setup
 
 ```bash
-$ monorepo-switcher dirty
-
-🔥 Dirty Packages:
-  🔥 [React] frontend - Web UI
-  🔥 [Node] shared - Common utilities
+git clone https://github.com/quadbyte/monorepo-switcher.git
+cd monorepo-switcher
+npm install
 ```
 
-### Quick Fuzzy Search
+### Building
 
 ```bash
-$ monorepo-switcher --fuzzy "admin"
-✓ Switched to: admin
-  Path: /Users/dev/my-project/packages/admin
-  Run: cd /Users/dev/my-project/packages/admin
+npm run build
 ```
 
-## License
+### Testing
 
-MIT © [Sulthon](https://github.com/sulthonzh)
+```bash
+npm test
+```
+
+### Linting
+
+```bash
+npm run lint
+```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Roadmap
+
+- [ ] VS Code extension integration
+- [ ] Session persistence across terminal restarts
+- [ ] Custom monorepo configuration
+- [ ] Package dependency visualization
+- [ ] Advanced fuzzy search with fuzzy matching library
+- [ ] Git branch integration
+- [ ] Custom output formats (JSON, YAML)
 
 ## Support
 
-If you encounter any issues or have feature requests, please open an issue on [GitHub](https://github.com/sulthonzh/monorepo-switcher/issues).
+- 📧 Email: support@quadbyte.dev
+- 🐛 Issues: [GitHub Issues](https://github.com/quadbyte/monorepo-switcher/issues)
+- 💬 Discord: [Join our community](https://discord.gg/monorepo-switcher)
+
+---
+
+Made with ❤️ by [Quadbyte](https://quadbyte.dev)

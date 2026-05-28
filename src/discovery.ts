@@ -1,127 +1,94 @@
-import fs from 'fs';
-import path from 'path';
-import type { PackageInfo, PackageType, DiscoveryOptions } from './types.js';
-import { checkGitStatus } from './git-status.js';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import fastGlob from 'fast-glob';
+import { simpleGit } from 'simple-git';
 
-export function detectPackageType(packageJson: Record<string, unknown>): PackageType {
-  const deps = [
-    ...Object.keys((packageJson.dependencies as Record<string, string>) || {}),
-    ...Object.keys((packageJson.devDependencies as Record<string, string>) || {})
-  ];
-
-  if (deps.includes('next') && deps.includes('react')) {
-    return 'next';
-  }
-
-  if (deps.includes('react-native')) {
-    return 'react-native';
-  }
-
-  if (deps.includes('react') || deps.includes('react-dom')) {
-    return 'react';
-  }
-
-  if (deps.length > 0) {
-    return 'node';
-  }
-
-  if (packageJson.name?.toString().toLowerCase().includes('doc')) {
-    return 'docs';
-  }
-
-  return 'unknown';
+export interface PackageInfo {
+  name: string;
+  path: string;
+  type: 'node' | 'react' | 'next' | 'react-native' | 'docs' | 'unknown';
+  dependencies: string[];
+  scripts: string[];
+  gitStatus: 'clean' | 'modified' | 'untracked';
+  recentActivity: Date;
+  description?: string;
 }
 
-export function parsePackageJson(packageJsonPath: string): PackageInfo | null {
-  try {
-    const content = fs.readFileSync(packageJsonPath, 'utf-8');
-    const packageJson = JSON.parse(content);
+export class PackageDiscovery {
+  private readonly git = simpleGit();
 
-    if (!packageJson.name) {
+  async discover(): Promise<PackageInfo[]> {
+    const packageFiles = await this.findPackageFiles();
+    const packages = await Promise.all(
+      packageFiles.map(file => this.parsePackage(file))
+    );
+    return packages.filter((pkg): pkg is PackageInfo => pkg !== null);
+  }
+
+  private async findPackageFiles(): Promise<string[]> {
+    return fastGlob('**/package.json', {
+      ignore: ['**/node_modules/**'],
+      cwd: process.cwd()
+    });
+  }
+
+  private async parsePackage(filePath: string): Promise<PackageInfo | null> {
+    try {
+      const content = await fs.readFile(filePath, 'utf8');
+      const pkg = JSON.parse(content);
+      const relativePath = path.dirname(filePath);
+      
+      return {
+        name: pkg.name || relativePath,
+        path: relativePath,
+        type: this.detectPackageType(pkg),
+        dependencies: Object.keys(pkg.dependencies || {}),
+        scripts: Object.keys(pkg.scripts || {}),
+        gitStatus: await this.checkGitStatus(relativePath),
+        recentActivity: await this.getLastModified(relativePath),
+        description: pkg.description
+      };
+    } catch (error) {
+      console.warn(`Warning: Failed to parse package.json at ${filePath}:`, error);
       return null;
     }
-
-    const dependencies = Object.keys((packageJson.dependencies as Record<string, string>) || {});
-    const scripts = Object.keys((packageJson.scripts as Record<string, string>) || {});
-    const packagePath = path.dirname(packageJsonPath);
-
-    return {
-      name: packageJson.name as string,
-      path: packagePath,
-      type: detectPackageType(packageJson),
-      dependencies,
-      scripts,
-      gitStatus: checkGitStatus(packagePath),
-      recentActivity: new Date(),
-      description: (packageJson.description as string) || undefined
-    };
-  } catch (error) {
-    return null;
   }
-}
 
-export function scanForPackageJson(
-  rootPath: string,
-  options: DiscoveryOptions = {}
-): PackageInfo[] {
-  const packages: PackageInfo[] = [];
-  const maxDepth = options.maxDepth || 4;
-  const includeNodeModules = options.includeNodeModules || false;
+  private detectPackageType(pkg: any): PackageInfo['type'] {
+    const deps = Object.keys(pkg.dependencies || {});
+    
+    if (deps.includes('next')) return 'next';
+    if (deps.includes('react-native')) return 'react-native';
+    if (deps.includes('react')) return 'react';
+    if (pkg.name?.includes('docs') || pkg.name?.includes('documentation')) return 'docs';
+    if (deps.some(d => d.startsWith('@types/') || d === 'typescript')) return 'node';
+    return 'unknown';
+  }
 
-  function scanDirectory(currentPath: string, depth: number): void {
-    if (depth > maxDepth) {
-      return;
-    }
-
+  private async checkGitStatus(packagePath: string): Promise<PackageInfo['gitStatus']> {
     try {
-      const entries = fs.readdirSync(currentPath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(currentPath, entry.name);
-
-        if (entry.isDirectory()) {
-          if (!includeNodeModules && entry.name === 'node_modules') {
-            continue;
-          }
-
-          if (entry.name.startsWith('.')) {
-            continue;
-          }
-
-          const packageJsonPath = path.join(fullPath, 'package.json');
-
-          if (fs.existsSync(packageJsonPath)) {
-            const pkg = parsePackageJson(packageJsonPath);
-            if (pkg && pkg.path !== rootPath) {
-              packages.push(pkg);
-            }
-          }
-
-          scanDirectory(fullPath, depth + 1);
-        }
-      }
+      const status = await this.git.status([packagePath]);
+      const files = status.files;
+      
+      if (files.length === 0) return 'clean';
+      
+      // Check if any files are untracked
+      const hasUntracked = files.some(f => f.index === '?' && f.working_dir === '?');
+      if (hasUntracked) return 'untracked';
+      
+      return 'modified';
     } catch (error) {
-      // Skip directories we can't read
+      // If git operations fail, assume clean status
+      return 'clean';
     }
   }
 
-  scanDirectory(rootPath, 0);
-  return packages;
-}
-
-export function discoverPackages(rootPath: string, options?: DiscoveryOptions): PackageInfo[] {
-  const packages = scanForPackageJson(rootPath, options);
-
-  // Remove duplicates based on path
-  const seenPaths = new Set<string>();
-  const uniquePackages: PackageInfo[] = [];
-
-  for (const pkg of packages) {
-    if (!seenPaths.has(pkg.path)) {
-      seenPaths.add(pkg.path);
-      uniquePackages.push(pkg);
+  private async getLastModified(packagePath: string): Promise<Date> {
+    try {
+      const stats = await fs.stat(packagePath);
+      return stats.mtime;
+    } catch (error) {
+      return new Date();
     }
   }
-
-  return uniquePackages.sort((a, b) => a.name.localeCompare(b.name));
 }
