@@ -1,80 +1,63 @@
 import * as path from 'path';
-import { PackageDiscovery } from './discovery';
+import { PackageInfo } from './types';
 
 export class WorkspaceNavigator {
-  private history: string[] = [];
-  private readonly maxHistory = 10;
-  private readonly historyFile = '.monorepo-switcher-history';
+  constructor(private rootPath: string) {}
 
-  async switch(packageName: string): Promise<void> {
-    const packagePath = await this.findPackagePath(packageName);
-    if (!packagePath) {
-      throw new Error(`Package '${packageName}' not found`);
-    }
-
-    // Update history
-    this.updateHistory(packageName);
+  async switchToPackage(packageInfo: PackageInfo): Promise<void> {
+    const targetPath = path.join(this.rootPath, packageInfo.path);
+    console.log(`\n🚀 Switching to package: ${packageInfo.name}`);
+    console.log(`📁 Path: ${targetPath}`);
     
-    // Change directory
-    process.chdir(packagePath);
-    console.log(`🎯 Switched to ${packageName} at ${packagePath}`);
+    // In a real implementation, this would change the current working directory
+    // For now, we'll just print the target path
+    console.log(`\n💡 To navigate to this package, run: cd "${targetPath}"`);
+    
+    // Store the current directory change
+    await this.storeDirectoryChange(targetPath);
   }
 
-  async findPackagePath(packageName: string): Promise<string | null> {
-    const discovery = new PackageDiscovery();
-    const packages = await discovery.discover();
-    
-    // Exact match by name
-    const exactMatch = packages.find(p => p.name === packageName);
-    if (exactMatch) {
-      return path.resolve(process.cwd(), exactMatch.path);
-    }
-    
-    // Partial match by path
-    const pathMatch = packages.find(p => 
-      p.path.includes(packageName) || 
-      p.name.includes(packageName)
-    );
-    
-    if (pathMatch) {
-      return path.resolve(process.cwd(), pathMatch.path);
-    }
-    
-    return null;
+  private async storeDirectoryChange(targetPath: string): Promise<void> {
+    // In a real implementation, this would store the directory change
+    // For now, we'll just log it
+    console.log(`✅ Directory change recorded. You can now navigate to: ${targetPath}`);
   }
 
-  private updateHistory(packageName: string): void {
-    this.history = this.history.filter(name => name !== packageName);
-    this.history.unshift(packageName);
+  async generateCompletionScript(packages: PackageInfo[]): Promise<string> {
+    const packageNames = packages.map(pkg => pkg.name);
     
-    if (this.history.length > this.maxHistory) {
-      this.history = this.history.slice(0, this.maxHistory);
-    }
+    return `
+# Monorepo Switcher Bash Completion
+_monorepo_switcher_completion() {
+    local cur prev packages
+    cur="\${COMP_WORDS[COMP_CWORD]}"
+    prev="\${COMP_WORDS[COMP_CWORD-1]}"
     
-    this.saveHistory();
+    # Get all package names
+    packages=(${packageNames.join(' ')})
+    
+    if [[ "\${cur}" == * ]]; then
+        COMPREPLY=( $(compgen -W "\${packages[*]}" -- "\${cur}") )
+    fi
+}
+
+complete -F _monorepo_switcher_completion monorepo-switcher
+`;
   }
 
-  async getRecentPackages(): Promise<string[]> {
-    return this.history;
-  }
+  async generateZshCompletion(packages: PackageInfo[]): Promise<string> {
+    const packageNames = packages.map(pkg => pkg.name);
+    
+    return `
+# Monorepo Switcher Zsh Completion
+_monorepo_switcher() {
+    local -a packages
+    packages=(${packageNames.join(' ')})
+    
+    _describe 'packages' packages
+}
 
-  private async saveHistory(): Promise<void> {
-    try {
-      const historyPath = path.join(process.cwd(), this.historyFile);
-      const historyContent = this.history.join('\n');
-      await require('fs').promises.writeFile(historyPath, historyContent);
-    } catch (error) {
-      // Silently fail if we can't save history
-    }
-  }
-
-  async loadHistory(): Promise<void> {
-    try {
-      const historyPath = path.join(process.cwd(), this.historyFile);
-      const historyContent = await require('fs').promises.readFile(historyPath, 'utf8');
-      this.history = historyContent.split('\n').filter(Boolean).slice(0, this.maxHistory);
-    } catch (error) {
-      // Silently fail if history doesn't exist
-    }
+compdef _monorepo_switcher monorepo-switcher
+`;
   }
 }

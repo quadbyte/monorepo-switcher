@@ -1,76 +1,76 @@
-import fs from 'fs';
-import path from 'path';
-import type { SessionContext } from './types.js';
-import { getConfig } from './config.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import { SwitchContext } from './types';
 
-const DEFAULT_CONTEXT: SessionContext = {
-  recentPackages: [],
-  currentPackage: null,
-  lastActivity: new Date()
-};
+export class ContextManager {
+  private readonly CONTEXT_FILE = '.monorepo-switcher-context.json';
+  private readonly MAX_RECENT_PACKAGES = 10;
 
-export function getSessionContext(): SessionContext {
-  const config = getConfig();
-  const historyDir = path.dirname(config.historyFilePath);
+  constructor(private rootPath: string) {}
 
-  if (!fs.existsSync(historyDir)) {
-    fs.mkdirSync(historyDir, { recursive: true });
-  }
-
-  if (fs.existsSync(config.historyFilePath)) {
-    try {
-      const content = fs.readFileSync(config.historyFilePath, 'utf-8');
-      const parsed = JSON.parse(content);
+  async loadContext(): Promise<SwitchContext> {
+    const contextPath = path.join(this.rootPath, this.CONTEXT_FILE);
+    
+    if (!fs.existsSync(contextPath)) {
       return {
-        ...DEFAULT_CONTEXT,
-        ...parsed,
-        recentPackages: parsed.recentPackages || [],
-        lastActivity: parsed.lastActivity ? new Date(parsed.lastActivity) : new Date()
+        recentPackages: [],
+        sessionStart: new Date(),
+        lastActivity: new Date()
+      };
+    }
+
+    try {
+      const contextData = JSON.parse(fs.readFileSync(contextPath, 'utf-8'));
+      return {
+        ...contextData,
+        sessionStart: new Date(contextData.sessionStart),
+        lastActivity: new Date(contextData.lastActivity)
       };
     } catch (error) {
-      return { ...DEFAULT_CONTEXT };
+      // If context file is corrupted, return fresh context
+      return {
+        recentPackages: [],
+        sessionStart: new Date(),
+        lastActivity: new Date()
+      };
     }
   }
 
-  return { ...DEFAULT_CONTEXT };
-}
+  async saveContext(context: SwitchContext): Promise<void> {
+    const contextPath = path.join(this.rootPath, this.CONTEXT_FILE);
+    const contextData = {
+      ...context,
+      sessionStart: context.sessionStart.toISOString(),
+      lastActivity: context.lastActivity.toISOString()
+    };
 
-export function saveSessionContext(context: SessionContext): void {
-  const config = getConfig();
-  const historyDir = path.dirname(config.historyFilePath);
-
-  if (!fs.existsSync(historyDir)) {
-    fs.mkdirSync(historyDir, { recursive: true });
+    fs.writeFileSync(contextPath, JSON.stringify(contextData, null, 2));
   }
 
-  fs.writeFileSync(config.historyFilePath, JSON.stringify(context, null, 2));
-}
-
-export function addToRecent(packageName: string): void {
-  const context = getSessionContext();
-  const config = getConfig();
-
-  const index = context.recentPackages.indexOf(packageName);
-  if (index > -1) {
-    context.recentPackages.splice(index, 1);
+  async updateContext(packageName: string): Promise<void> {
+    const context = await this.loadContext();
+    
+    // Remove if already exists to avoid duplicates
+    context.recentPackages = context.recentPackages.filter(name => name !== packageName);
+    
+    // Add to beginning of list
+    context.recentPackages.unshift(packageName);
+    
+    // Keep only the most recent packages
+    if (context.recentPackages.length > this.MAX_RECENT_PACKAGES) {
+      context.recentPackages = context.recentPackages.slice(0, this.MAX_RECENT_PACKAGES);
+    }
+    
+    context.lastActivity = new Date();
+    context.currentPackage = packageName;
+    
+    await this.saveContext(context);
   }
 
-  context.recentPackages.unshift(packageName);
-
-  if (context.recentPackages.length > config.maxRecentPackages) {
-    context.recentPackages = context.recentPackages.slice(0, config.maxRecentPackages);
+  async clearContext(): Promise<void> {
+    const contextPath = path.join(this.rootPath, this.CONTEXT_FILE);
+    if (fs.existsSync(contextPath)) {
+      fs.unlinkSync(contextPath);
+    }
   }
-
-  context.currentPackage = packageName;
-  context.lastActivity = new Date();
-
-  saveSessionContext(context);
-}
-
-export function clearRecent(): void {
-  saveSessionContext({
-    recentPackages: [],
-    currentPackage: null,
-    lastActivity: new Date()
-  });
 }

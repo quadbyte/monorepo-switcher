@@ -29,29 +29,30 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/quadbyte/monorepo-switcher.git"
+    "url": "git+https://github.com/quadbyte/monorepo-switcher.git"
   },
   "bugs": {
     "url": "https://github.com/quadbyte/monorepo-switcher/issues"
   },
   "homepage": "https://github.com/quadbyte/monorepo-switcher#readme",
   "dependencies": {
-    "commander": "^11.1.0",
     "chalk": "^4.1.2",
     "cli-table3": "^0.6.3",
-    "ora": "^7.0.1",
+    "commander": "^11.1.0",
     "fast-glob": "^3.3.2",
+    "ora": "^7.0.1",
     "simple-git": "^3.20.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "esbuild": "^0.19.0",
-    "jest": "^29.7.0",
     "@types/jest": "^29.5.8",
-    "eslint": "^8.55.0",
+    "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
-    "@typescript-eslint/parser": "^6.13.1"
+    "@typescript-eslint/parser": "^6.13.1",
+    "esbuild": "^0.19.0",
+    "eslint": "^8.55.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.11",
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -59,5 +60,8 @@
   "files": [
     "build",
     "README.md"
-  ]
+  ],
+  "directories": {
+    "test": "tests"
+  }
 }

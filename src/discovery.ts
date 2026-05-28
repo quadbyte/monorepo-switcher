@@ -1,94 +1,95 @@
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 import * as path from 'path';
 import fastGlob from 'fast-glob';
-import { simpleGit } from 'simple-git';
-
-export interface PackageInfo {
-  name: string;
-  path: string;
-  type: 'node' | 'react' | 'next' | 'react-native' | 'docs' | 'unknown';
-  dependencies: string[];
-  scripts: string[];
-  gitStatus: 'clean' | 'modified' | 'untracked';
-  recentActivity: Date;
-  description?: string;
-}
+import { PackageInfo, PackageType, PackageDiscoveryOptions } from './types';
 
 export class PackageDiscovery {
-  private readonly git = simpleGit();
+  private options: Required<PackageDiscoveryOptions>;
 
-  async discover(): Promise<PackageInfo[]> {
-    const packageFiles = await this.findPackageFiles();
-    const packages = await Promise.all(
-      packageFiles.map(file => this.parsePackage(file))
-    );
-    return packages.filter((pkg): pkg is PackageInfo => pkg !== null);
+  constructor(options: PackageDiscoveryOptions = {}) {
+    this.options = {
+      searchPaths: ['packages', 'apps', 'libs', 'workspaces'],
+      includeHidden: false,
+      maxDepth: 3,
+      ...options
+    };
   }
 
-  private async findPackageFiles(): Promise<string[]> {
-    return fastGlob('**/package.json', {
-      ignore: ['**/node_modules/**'],
-      cwd: process.cwd()
-    });
-  }
-
-  private async parsePackage(filePath: string): Promise<PackageInfo | null> {
-    try {
-      const content = await fs.readFile(filePath, 'utf8');
-      const pkg = JSON.parse(content);
-      const relativePath = path.dirname(filePath);
-      
-      return {
-        name: pkg.name || relativePath,
-        path: relativePath,
-        type: this.detectPackageType(pkg),
-        dependencies: Object.keys(pkg.dependencies || {}),
-        scripts: Object.keys(pkg.scripts || {}),
-        gitStatus: await this.checkGitStatus(relativePath),
-        recentActivity: await this.getLastModified(relativePath),
-        description: pkg.description
-      };
-    } catch (error) {
-      console.warn(`Warning: Failed to parse package.json at ${filePath}:`, error);
-      return null;
-    }
-  }
-
-  private detectPackageType(pkg: any): PackageInfo['type'] {
-    const deps = Object.keys(pkg.dependencies || {});
+  async discoverPackages(rootPath: string): Promise<PackageInfo[]> {
+    const packagePaths = await this.findPackagePaths(rootPath);
     
-    if (deps.includes('next')) return 'next';
-    if (deps.includes('react-native')) return 'react-native';
-    if (deps.includes('react')) return 'react';
-    if (pkg.name?.includes('docs') || pkg.name?.includes('documentation')) return 'docs';
-    if (deps.some(d => d.startsWith('@types/') || d === 'typescript')) return 'node';
+    const packageInfos: PackageInfo[] = [];
+    
+    for (const pkgPath of packagePaths) {
+      try {
+        const packageInfo = await this.parsePackage(pkgPath, rootPath);
+        packageInfos.push(packageInfo);
+      } catch (error) {
+        console.warn(`Failed to parse package at ${pkgPath}:`, error);
+      }
+    }
+
+    return packageInfos;
+  }
+
+  private async findPackagePaths(rootPath: string): Promise<string[]> {
+    const patterns = this.options.searchPaths.map(pattern => 
+      path.join(rootPath, pattern, '**/package.json')
+    );
+
+    const packageFiles = await fastGlob(patterns, {
+      ignore: this.options.includeHidden ? [] : ['**/node_modules/**', '**/.git/**'],
+      deep: this.options.maxDepth,
+      onlyFiles: true
+    });
+
+    return packageFiles.map(file => path.dirname(file));
+  }
+
+  private async parsePackage(packagePath: string, rootPath: string): Promise<PackageInfo> {
+    const packageJsonPath = path.join(packagePath, 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    
+    return {
+      name: packageJson.name,
+      path: path.relative(rootPath, packagePath),
+      type: this.detectPackageType(packageJson),
+      dependencies: Object.keys(packageJson.dependencies || {}),
+      scripts: Object.keys(packageJson.scripts || {}),
+      gitStatus: 'clean', // Will be updated by git status checker
+      recentActivity: new Date(fs.statSync(packagePath).mtime),
+      description: packageJson.description
+    };
+  }
+
+  private detectPackageType(packageJson: any): PackageType {
+    const dependencies = Object.keys(packageJson.dependencies || {});
+    const devDependencies = Object.keys(packageJson.devDependencies || {});
+    const allDeps = [...dependencies, ...devDependencies];
+
+    // React detection
+    if (allDeps.includes('react') || allDeps.includes('react-dom')) {
+      if (allDeps.includes('next')) return 'next';
+      if (allDeps.includes('react-native')) return 'react-native';
+      return 'react';
+    }
+
+    // Node.js detection
+    if (allDeps.some(dep => dep.startsWith('express') || dep.startsWith('koa') || dep.startsWith('hapi'))) {
+      return 'node';
+    }
+
+    // Documentation detection
+    if (allDeps.includes('docsify') || allDeps.includes('docusaurus') || allDeps.includes('vuepress')) {
+      return 'docs';
+    }
+
+    // Fallback based on directory structure
+    const dirName = path.basename(packageJson.name || '');
+    if (dirName.includes('doc') || dirName.includes('docs')) {
+      return 'docs';
+    }
+
     return 'unknown';
-  }
-
-  private async checkGitStatus(packagePath: string): Promise<PackageInfo['gitStatus']> {
-    try {
-      const status = await this.git.status([packagePath]);
-      const files = status.files;
-      
-      if (files.length === 0) return 'clean';
-      
-      // Check if any files are untracked
-      const hasUntracked = files.some(f => f.index === '?' && f.working_dir === '?');
-      if (hasUntracked) return 'untracked';
-      
-      return 'modified';
-    } catch (error) {
-      // If git operations fail, assume clean status
-      return 'clean';
-    }
-  }
-
-  private async getLastModified(packagePath: string): Promise<Date> {
-    try {
-      const stats = await fs.stat(packagePath);
-      return stats.mtime;
-    } catch (error) {
-      return new Date();
-    }
   }
 }

@@ -1,45 +1,46 @@
-import { execSync } from 'child_process';
-import type { GitStatus } from './types.js';
+import * as simpleGit from 'simple-git';
+import * as path from 'path';
+import { GitStatus } from './types';
 
-export function checkGitStatus(packagePath: string): GitStatus {
-  try {
-    const output = execSync('git status --porcelain', {
-      cwd: packagePath,
-      encoding: 'utf-8'
-    });
+export class GitStatusChecker {
+  private git: simpleGit.SimpleGit;
 
-    if (output.trim().length === 0) {
+  constructor(private rootPath: string) {
+    this.git = simpleGit.default(rootPath);
+  }
+
+  async checkPackageStatus(packagePath: string): Promise<GitStatus> {
+    try {
+      const fullPackagePath = path.join(this.rootPath, packagePath);
+      
+      // Check if the directory is a git repository
+      const isGitRepo = await this.git.checkIsRepo(fullPackagePath);
+      if (!isGitRepo) {
+        return 'clean';
+      }
+
+      // Check for uncommitted changes
+      const status = await this.git.status([fullPackagePath]);
+      
+      if (status.not_added.length > 0 || status.modified.length > 0) {
+        return 'modified';
+      }
+
+      return 'clean';
+    } catch (error) {
+      // If git operations fail, assume clean status
       return 'clean';
     }
-
-    const lines = output.trim().split('\n');
-    const hasUntracked = lines.some(line => line.startsWith('??'));
-    return hasUntracked ? 'untracked' : 'modified';
-  } catch (error) {
-    return 'clean';
   }
-}
 
-export function getGitRoot(cwd: string): string | null {
-  try {
-    const output = execSync('git rev-parse --show-toplevel', {
-      cwd,
-      encoding: 'utf-8'
-    });
-    return output.trim();
-  } catch (error) {
-    return null;
-  }
-}
+  async checkAllPackages(packagePaths: string[]): Promise<Map<string, GitStatus>> {
+    const statusMap = new Map<string, GitStatus>();
 
-export function isGitRepo(cwd: string): boolean {
-  try {
-    execSync('git rev-parse --is-inside-work-tree', {
-      cwd,
-      encoding: 'utf-8'
-    });
-    return true;
-  } catch (error) {
-    return false;
+    for (const pkgPath of packagePaths) {
+      const status = await this.checkPackageStatus(pkgPath);
+      statusMap.set(pkgPath, status);
+    }
+
+    return statusMap;
   }
 }

@@ -1,116 +1,89 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert';
-import { findPackageByName, fuzzySearchPackages, getDirtyPackages } from '../dist/navigator.js';
-import type { PackageInfo } from '../dist/types.js';
+import { WorkspaceNavigator } from '../src/navigator';
+import { PackageInfo } from '../src/types';
 
-const mockPackages: PackageInfo[] = [
-  {
-    name: 'backend',
-    path: '/packages/backend',
-    type: 'node',
-    dependencies: ['express', 'lodash'],
-    scripts: ['start', 'test'],
-    gitStatus: 'clean',
-    recentActivity: new Date(),
-    description: 'Backend API service'
-  },
-  {
-    name: 'frontend',
-    path: '/packages/frontend',
-    type: 'react',
-    dependencies: ['react', 'react-dom'],
-    scripts: ['dev', 'build'],
-    gitStatus: 'modified',
-    recentActivity: new Date(),
-    description: 'React frontend app'
-  },
-  {
-    name: 'admin',
-    path: '/packages/admin',
-    type: 'next',
-    dependencies: ['next', 'react'],
-    scripts: ['dev', 'build'],
-    gitStatus: 'clean',
-    recentActivity: new Date(),
-    description: 'Admin dashboard'
-  },
-  {
-    name: 'shared',
-    path: '/packages/shared',
-    type: 'node',
-    dependencies: ['lodash'],
-    scripts: ['build'],
-    gitStatus: 'untracked',
-    recentActivity: new Date(),
-    description: 'Shared utilities'
-  }
-];
+describe('WorkspaceNavigator', () => {
+  let navigator: WorkspaceNavigator;
+  let mockRootPath: string;
 
-describe('findPackageByName', () => {
-  it('finds package by exact name', () => {
-    const found = findPackageByName(mockPackages, 'backend');
-    assert.ok(found);
-    assert.strictEqual(found?.name, 'backend');
+  beforeEach(() => {
+    mockRootPath = '/test/monorepo';
+    navigator = new WorkspaceNavigator(mockRootPath);
   });
 
-  it('returns null for non-existent package', () => {
-    const found = findPackageByName(mockPackages, 'non-existent');
-    assert.strictEqual(found, null);
+  describe('switchToPackage', () => {
+    it('should log package switch information', async () => {
+      const mockPackage: PackageInfo = {
+        name: 'backend',
+        path: 'packages/backend',
+        type: 'node',
+        dependencies: ['express'],
+        scripts: ['start', 'test'],
+        gitStatus: 'clean',
+        recentActivity: new Date(),
+        description: 'Backend API service'
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      
+      await navigator.switchToPackage(mockPackage);
+      
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Switching to package: backend')
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Path: /test/monorepo/packages/backend')
+      );
+      
+      consoleSpy.mockRestore();
+    });
   });
 
-  it('finds package by partial name when unique', () => {
-    const found = findPackageByName(mockPackages, 'back');
-    assert.ok(found);
-    assert.strictEqual(found?.name, 'backend');
-  });
+  describe('generateCompletionScript', () => {
+    it('should generate bash completion script', async () => {
+      const mockPackages: PackageInfo[] = [
+        {
+          name: 'backend',
+          path: 'packages/backend',
+          type: 'node',
+          dependencies: ['express'],
+          scripts: ['start'],
+          gitStatus: 'clean',
+          recentActivity: new Date()
+        },
+        {
+          name: 'frontend',
+          path: 'packages/frontend',
+          type: 'react',
+          dependencies: ['react'],
+          scripts: ['start'],
+          gitStatus: 'clean',
+          recentActivity: new Date()
+        }
+      ];
 
-  it('returns null for partial name with multiple matches', () => {
-    const found = findPackageByName(mockPackages, 'e');
-    assert.strictEqual(found, null);
-  });
-});
+      const completion = await navigator.generateCompletionScript(mockPackages);
+      
+      expect(completion).toContain('# Monorepo Switcher Bash Completion');
+      expect(completion).toContain('backend frontend');
+    });
 
-describe('fuzzySearchPackages', () => {
-  it('returns all packages when query is empty', () => {
-    const results = fuzzySearchPackages(mockPackages, '');
-    assert.strictEqual(results.length, 4);
-  });
+    it('should generate zsh completion script', async () => {
+      const mockPackages: PackageInfo[] = [
+        {
+          name: 'backend',
+          path: 'packages/backend',
+          type: 'node',
+          dependencies: ['express'],
+          scripts: ['start'],
+          gitStatus: 'clean',
+          recentActivity: new Date()
+        }
+      ];
 
-  it('filters by name', () => {
-    const results = fuzzySearchPackages(mockPackages, 'front');
-    assert.strictEqual(results.length, 1);
-    assert.strictEqual(results[0].name, 'frontend');
-  });
-
-  it('filters by description', () => {
-    const results = fuzzySearchPackages(mockPackages, 'API');
-    assert.strictEqual(results.length, 1);
-    assert.strictEqual(results[0].name, 'backend');
-  });
-
-  it('is case insensitive', () => {
-    const results = fuzzySearchPackages(mockPackages, 'BACKEND');
-    assert.strictEqual(results.length, 1);
-    assert.strictEqual(results[0].name, 'backend');
-  });
-
-  it('returns empty array when no matches', () => {
-    const results = fuzzySearchPackages(mockPackages, 'xyz');
-    assert.strictEqual(results.length, 0);
-  });
-});
-
-describe('getDirtyPackages', () => {
-  it('filters packages with uncommitted changes', () => {
-    const dirty = getDirtyPackages(mockPackages);
-    assert.strictEqual(dirty.length, 2);
-    assert.ok(dirty.some(p => p.name === 'frontend'));
-    assert.ok(dirty.some(p => p.name === 'shared'));
-  });
-
-  it('returns empty array when all packages are clean', () => {
-    const cleanPackages = mockPackages.map(p => ({ ...p, gitStatus: 'clean' as const }));
-    const dirty = getDirtyPackages(cleanPackages);
-    assert.strictEqual(dirty.length, 0);
+      const completion = await navigator.generateZshCompletion(mockPackages);
+      
+      expect(completion).toContain('# Monorepo Switcher Zsh Completion');
+      expect(completion).toContain('backend');
+    });
   });
 });

@@ -1,18 +1,15 @@
 # monorepo-switcher
 
-[![npm version](https://badge.fury.io/js/monorepo-switcher.svg)](https://badge.fury.io/js/monorepo-switcher)
-[![Build Status](https://github.com/quadbyte/monorepo-switcher/actions/workflows/ci.yml/badge.svg)](https://github.com/quadbyte/monorepo-switcher/actions/workflows/ci.yml)
-
-Intelligent CLI for fast monorepo workspace switching with context awareness.
+Intelligent CLI for fast monorepo workspace switching with context awareness and smart discovery.
 
 ## Features
 
-- 🔍 **Fast Discovery**: Instantly discovers all packages in your monorepo
-- 🎯 **Smart Switching**: Quick navigation between packages with fuzzy search
-- 📊 **Context Awareness**: Shows package type, git status, and recent activity
-- 📝 **Session History**: Remembers recently used packages
-- 🎨 **Rich Output**: Beautiful terminal formatting with colors and icons
-- ⚡ **Lightweight**: No external dependencies, fast startup time
+- 🔍 **Fast Discovery**: Instantly list all packages in your monorepo
+- 🎯 **Smart Switching**: Quickly navigate between packages with intelligent completion
+- 📊 **Context Awareness**: See git status and recent activity for each package
+- 🕐 **Session Persistence**: Remember your workspace context across terminal sessions
+- 🔧 **Framework Detection**: Auto-detect package types (React, Node.js, Next.js, etc.)
+- 🎨 **Rich UI**: Beautiful terminal output with colors and icons
 
 ## Installation
 
@@ -25,53 +22,61 @@ npm install -g monorepo-switcher
 ### List all packages
 
 ```bash
-monorepo-switcher
+monorepo-switcher list
+# or
+monorepo-switcher ls
 ```
 
 ### Switch to a specific package
 
 ```bash
-monorepo-switcher backend
-monorepo-switcher frontend
-monorepo-switcher shared
+monorepo-switcher switch backend
+# or
+monorepo-switcher s backend
 ```
 
 ### Show recently used packages
 
 ```bash
-monorepo-switcher --recent
+monorepo-switcher recent
 ```
 
-### Fuzzy search for packages
+### Filter packages
 
 ```bash
-monorepo-switcher --fuzzy
+# Show only recently used packages
+monorepo-switcher list --recent
+
+# Show only packages with uncommitted changes
+monorepo-switcher list --dirty
+
+# Filter by package type
+monorepo-switcher list --type react
 ```
 
-### Show help
+### Generate shell completion
 
 ```bash
-monorepo-switcher --help
-```
+# For bash
+monorepo-switcher completion --shell bash
 
-### Show version
-
-```bash
-monorepo-switcher --version
+# For zsh
+monorepo-switcher completion --shell zsh
 ```
 
 ## Examples
 
+### Basic usage
+
 ```bash
-# List all packages in current monorepo
 $ monorepo-switcher
 
 📦 Monorepo: /Users/dev/my-project (12 packages)
 
 🎯 RECENTLY USED:
-├── backend/          ⚠️ modified
+├── backend/          ⚠️ 2 files modified
 ├── frontend/        ✅ clean
-└── shared/          🔥 active
+└── shared/          🔥 5 files modified (active)
 
 🔍 ALL PACKAGES:
 ├── backend/ (Node.js) - REST API service
@@ -81,97 +86,112 @@ $ monorepo-switcher
 ├── mobile/ (React Native) - Mobile app
 └── docs/ (Markdown) - Project documentation
 
-# Switch to backend package
-$ monorepo-switcher backend
-🎯 Switching to backend...
-✅ Successfully switched to /Users/dev/my-project/backend
-
-# Show recently used packages
-$ monorepo-switcher --recent
-📦 Monorepo: /Users/dev/my-project (12 packages)
-
-🎯 RECENTLY USED:
-├── backend/          ⚠️ modified
-├── frontend/        ✅ clean
-└── shared/          🔥 active
+Switch to package: backend
 ```
 
-## Status Icons
+### Quick switching
 
-- ✅ **clean**: No changes in git
-- ⚠️ **modified**: Has changes in git
-- ❌ **untracked**: Has untracked files
+```bash
+$ monorepo-switcher backend
 
-## Package Types
+🚀 Switching to package: backend
+📁 Path: /Users/dev/my-project/packages/backend
 
-- **Node.js**: Node.js package with TypeScript
-- **React**: React application
-- **Next.js**: Next.js application
-- **React Native**: React Native application
-- **Docs**: Documentation package
-- **Unknown**: Unrecognized package type
+💡 To navigate to this package, run: cd "/Users/dev/my-project/packages/backend"
+✅ Directory change recorded. You can now navigate to: /Users/dev/my-project/packages/backend
+```
+
+## Requirements
+
+- Node.js >= 18.0.0
+- Git (for git status detection)
+
+## Supported Monorepo Structures
+
+monorepo-switcher automatically detects packages in common monorepo layouts:
+
+```
+my-project/
+├── packages/
+│   ├── backend/
+│   ├── frontend/
+│   └── shared/
+├── apps/
+│   ├── web/
+│   └── mobile/
+├── libs/
+│   ├── ui/
+│   └── utils/
+└── workspaces/
+    ├── admin/
+    └── api/
+```
+
+## Package Detection
+
+The tool automatically detects package types based on dependencies:
+
+- **Node.js**: Express, Koa, Hapi, or other Node.js frameworks
+- **React**: React and React DOM dependencies
+- **Next.js**: React + Next.js dependencies
+- **React Native**: React Native dependencies
+- **Docs**: Docusaurus, Docsify, VuePress, or other documentation tools
+- **Unknown**: Unrecognized package types
+
+## Configuration
+
+monorepo-switcher is designed to work out of the box with zero configuration. However, you can customize its behavior by creating a `.monorepo-switcher.json` file in your monorepo root:
+
+```json
+{
+  "packagePatterns": ["packages", "apps", "libs", "workspaces"],
+  "excludePatterns": ["**/node_modules/**", "**/.git/**"],
+  "maxDepth": 3
+}
+```
 
 ## Development
 
-### Prerequisites
-
-- Node.js 18 or higher
-- npm or yarn
-
-### Setup
-
 ```bash
+# Clone the repository
 git clone https://github.com/quadbyte/monorepo-switcher.git
 cd monorepo-switcher
+
+# Install dependencies
 npm install
-```
 
-### Building
-
-```bash
+# Build the project
 npm run build
-```
 
-### Testing
-
-```bash
+# Run tests
 npm test
+
+# Run in development mode
+npm run dev
 ```
 
-### Linting
+## License
 
-```bash
-npm run lint
-```
+MIT - see [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Run the test suite
+6. Submit a pull request
 
 ## Roadmap
 
-- [ ] VS Code extension integration
-- [ ] Session persistence across terminal restarts
-- [ ] Custom monorepo configuration
+- [ ] Fuzzy search for package names
+- [ ] Integration with VS Code
 - [ ] Package dependency visualization
-- [ ] Advanced fuzzy search with fuzzy matching library
-- [ ] Git branch integration
-- [ ] Custom output formats (JSON, YAML)
+- [ ] Session persistence across terminal restarts
+- [ ] Configuration file customization
+- [ ] Integration with popular monorepo tools (Turbo, Nx)
 
 ## Support
 
-- 📧 Email: support@quadbyte.dev
-- 🐛 Issues: [GitHub Issues](https://github.com/quadbyte/monorepo-switcher/issues)
-- 💬 Discord: [Join our community](https://discord.gg/monorepo-switcher)
-
----
-
-Made with ❤️ by [Quadbyte](https://quadbyte.dev)
+If you encounter any issues or have questions, please [file an issue](https://github.com/quadbyte/monorepo-switcher/issues).
