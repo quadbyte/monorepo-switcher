@@ -1,6 +1,6 @@
 {
   "name": "monorepo-switcher",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Intelligent CLI for fast monorepo workspace switching",
   "main": "build/cli.js",
   "bin": {
