@@ -33,4 +33,7 @@ junit.xml
 
 # Temporary files
 *.tmp
-*.temp
+*.temp__pycache__/
+.venv/
+*.egg-info/
+.mypy_cache/
