@@ -32,8 +32,13 @@ coverage/
 junit.xml
 
 # Temporary files
+
+# Logs
+*.log
+*.tgz
 *.tmp
 *.temp__pycache__/
+__pycache__/
 .venv/
 *.egg-info/
 .mypy_cache/
