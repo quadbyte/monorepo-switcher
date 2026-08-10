@@ -37,7 +37,8 @@ junit.xml
 *.log
 *.tgz
 *.tmp
-*.temp__pycache__/
+*.temp
+__pycache__/
 __pycache__/
 .venv/
 *.egg-info/

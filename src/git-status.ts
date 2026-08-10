@@ -14,7 +14,7 @@ export class GitStatusChecker {
       const fullPackagePath = path.join(this.rootPath, packagePath);
       
       // Check if the directory is a git repository
-      const isGitRepo = await this.git.checkIsRepo(fullPackagePath);
+      const isGitRepo = await this.git.checkIsRepo();
       if (!isGitRepo) {
         return 'clean';
       }

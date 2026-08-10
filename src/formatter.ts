@@ -1,6 +1,6 @@
 import * as chalk from 'chalk';
 import Table from 'cli-table3';
-import { PackageInfo } from './discovery';
+import { PackageInfo, PackageType } from './types';
 
 export class Formatter {
   table(packages: PackageInfo[], recentOnly = false): string {
@@ -45,11 +45,11 @@ export class Formatter {
     return `${chalk.bold(name)}\n${chalk.gray(path)}`;
   }
 
-  private formatType(type: PackageInfo['type']): string {
-    const typeColors = {
+  private formatType(type: PackageType): string {
+    const typeColors: Record<PackageType, any> = {
       'node': chalk.blue,
       'react': chalk.green,
-      'next': chalk.purple,
+      'next': chalk.magenta,
       'react-native': chalk.yellow,
       'docs': chalk.cyan,
       'unknown': chalk.gray
@@ -68,13 +68,13 @@ export class Formatter {
   }
 
   private formatStatus(status: PackageInfo['gitStatus']): string {
-    const statusSymbols = {
+    const statusSymbols: Record<PackageInfo['gitStatus'], string> = {
       'clean': '✅',
       'modified': '⚠️',
       'untracked': '❌'
     };
 
-    const statusColors = {
+    const statusColors: Record<PackageInfo['gitStatus'], any> = {
       'clean': chalk.green,
       'modified': chalk.yellow,
       'untracked': chalk.red

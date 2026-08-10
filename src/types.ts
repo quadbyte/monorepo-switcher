@@ -32,6 +32,11 @@ export interface SwitchContext {
   lastActivity: Date;
 }
 
+export interface SwitcherConfig {
+  maxRecentPackages: number;
+  historyFilePath: string;
+}
+
 export interface MonorepoConfig {
   rootPath: string;
   packagePatterns: string[];

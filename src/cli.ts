@@ -95,7 +95,7 @@ async function listPackages(options: any) {
     displayPackages(filteredPackages);
   } catch (error) {
     spinner.fail('Failed to discover packages');
-    console.error(chalk.red('Error:'), error.message);
+    console.error(chalk.red('Error:'), (error as Error).message);
     process.exit(1);
   }
 }
@@ -183,7 +183,7 @@ async function switchToPackage(packageName: string) {
     spinner.succeed(`Switched to ${packageName}`);
   } catch (error) {
     spinner.fail('Failed to switch package');
-    console.error(chalk.red('Error:'), error.message);
+    console.error(chalk.red('Error:'), (error as Error).message);
     process.exit(1);
   }
 }
